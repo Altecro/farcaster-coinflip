@@ -2,7 +2,15 @@
   "version": "1",
   "name": "Coinflip",
   "icon": "https://farcaster-coinflip.vercel.app/icon.png",
-  "description": "Un mini jeu de pile ou face onchain sur Farcaster",
-  "screenshots": ["https://farcaster-coinflip.vercel.app/screenshot.png"],
-  "website": "https://farcaster-coinflip.vercel.app"
+  "description": "Mini jeu de pile ou face onchain sur Base",
+  "website": "https://farcaster-coinflip.vercel.app",
+  "screenshots": [],
+  "frames": [
+    {
+      "name": "Default",
+      "path": "/",
+      "button_title": "Flip Coin"
+    }
+  ]
 }
+
