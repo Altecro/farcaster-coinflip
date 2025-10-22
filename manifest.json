@@ -1,0 +1,8 @@
+{
+  "version": "1",
+  "name": "Coinflip",
+  "icon": "https://farcaster-coinflip.vercel.app/icon.png",
+  "description": "Un mini jeu de pile ou face onchain sur Farcaster",
+  "screenshots": ["https://farcaster-coinflip.vercel.app/screenshot.png"],
+  "website": "https://farcaster-coinflip.vercel.app"
+}
