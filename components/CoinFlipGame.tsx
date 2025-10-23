@@ -1,10 +1,11 @@
 'use client'
 
 import React, { useState, useEffect } from 'react';
-import { AlertCircle, Trophy, Coins, TrendingUp, Wallet } from 'lucide-react';
-import { useWriteContract, useReadContract, useAccount, useConnect } from 'wagmi';
-import { LEADERBOARD_CONTRACT, LEADERBOARD_ABI } from '@/lib/wagmi';
+import { AlertCircle, Trophy, Coins, TrendingUp } from 'lucide-react';
 import sdk from '@farcaster/frame-sdk';
+import { base } from 'viem/chains';
+import { encodeFunctionData } from 'viem';
+import { LEADERBOARD_CONTRACT, LEADERBOARD_ABI } from '@/lib/wagmi';
 
 export default function CoinFlipGame() {
   const [score, setScore] = useState(1);
@@ -14,54 +15,42 @@ export default function CoinFlipGame() {
   const [gameOver, setGameOver] = useState(false);
   const [playerName, setPlayerName] = useState('');
   const [showNameInput, setShowNameInput] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [isInFrame, setIsInFrame] = useState(false);
-
-  const { address, isConnected } = useAccount();
-  const { connect, connectors } = useConnect();
-  const { writeContract, isPending, isSuccess, error } = useWriteContract();
-
-  // Détecter si on est dans une Frame
-  useEffect(() => {
-    const checkFrame = async () => {
-      try {
-        const context = await sdk.context;
-        setIsInFrame(true);
-      } catch {
-        setIsInFrame(false);
-      }
-    };
-    checkFrame();
-  }, []);
-
-  const { data: leaderboardData, refetch } = useReadContract({
-    address: LEADERBOARD_CONTRACT,
-    abi: LEADERBOARD_ABI,
-    functionName: 'getTopScores',
-    args: [BigInt(10)]
-  });
+  const [fid, setFid] = useState<number | null>(null);
 
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
 
+  // Détecter si on est dans une Frame et récupérer le FID
   useEffect(() => {
-    if (leaderboardData) {
-      const formatted = (leaderboardData as any[]).map(entry => ({
-        name: entry.playerName,
-        score: Number(entry.score),
-        timestamp: Number(entry.timestamp) * 1000
-      }));
-      setLeaderboard(formatted);
-    }
-  }, [leaderboardData]);
+    const initFrame = async () => {
+      try {
+        const context = await sdk.context;
+        setIsInFrame(true);
+        setFid(context.user?.fid || null);
+        console.log('Frame context:', context);
+      } catch (err) {
+        console.log('Not in frame or error:', err);
+        setIsInFrame(false);
+      }
+    };
+    initFrame();
+  }, []);
 
-  // Recharger le leaderboard après succès
+  // Charger le leaderboard
   useEffect(() => {
-    if (isSuccess) {
-      setTimeout(() => {
-        refetch();
-        resetGame();
-      }, 3000);
+    loadLeaderboard();
+  }, []);
+
+  const loadLeaderboard = async () => {
+    try {
+      const response = await fetch('/api/leaderboard');
+      const data = await response.json();
+      setLeaderboard(data.scores || []);
+    } catch (err) {
+      console.error('Error loading leaderboard:', err);
     }
-  }, [isSuccess, refetch]);
+  };
 
   const flipCoin = (userChoice: 'heads' | 'tails') => {
     if (isFlipping || gameOver) return;
@@ -85,58 +74,64 @@ export default function CoinFlipGame() {
     }, 1500);
   };
 
-  const connectWallet = async () => {
-    try {
-      if (isInFrame) {
-        // Dans une Frame, demander au SDK de se connecter
-        await sdk.actions.openUrl('https://warpcast.com/~/settings/connected-apps');
-      } else {
-        // Hors Frame, connexion classique
-        const connector = connectors[0];
-        if (connector) {
-          connect({ connector });
-        }
-      }
-    } catch (err) {
-      console.error('Wallet connection error:', err);
-      alert('Please connect your wallet first');
-    }
-  };
-
   const saveToBlockchain = async () => {
     if (!playerName.trim()) {
       alert('Please enter your name');
       return;
     }
 
-    if (!isConnected || !address) {
-      alert('Please connect your wallet first');
-      await connectWallet();
-      return;
-    }
-
-    if (isPending) return;
+    setIsSaving(true);
 
     try {
-      console.log('Saving score...', { playerName, score, address });
-      
-      await writeContract({
-        address: LEADERBOARD_CONTRACT,
-        abi: LEADERBOARD_ABI,
-        functionName: 'saveScore',
-        args: [playerName.trim(), BigInt(score)]
-      });
+      if (isInFrame) {
+        // Utiliser les transactions Frame
+        console.log('Sending transaction via Frame...');
+        
+        // Encoder les données de la transaction
+        const data = encodeFunctionData({
+          abi: LEADERBOARD_ABI,
+          functionName: 'saveScore',
+          args: [playerName.trim(), BigInt(score)]
+        });
+
+        // Envoyer la transaction via le SDK Farcaster
+        const txId = await sdk.actions.sendTransaction({
+          chainId: `eip155:${base.id}`,
+          method: 'eth_sendTransaction',
+          params: {
+            abi: LEADERBOARD_ABI,
+            to: LEADERBOARD_CONTRACT,
+            data: data,
+            value: '0'
+          }
+        });
+
+        console.log('Transaction sent:', txId);
+        
+        // Simuler un délai pour la confirmation
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        
+        alert('Score saved successfully! 🎉');
+        await loadLeaderboard();
+        resetGame();
+        
+      } else {
+        // Mode web normal (hors Frame)
+        alert('Please open this app in Warpcast to save your score on-chain');
+      }
       
     } catch (err: any) {
       console.error('Transaction error:', err);
       
-      if (err.message?.includes('User rejected')) {
+      if (err.message?.includes('rejected')) {
         alert('Transaction cancelled');
-      } else if (err.message?.includes('insufficient funds')) {
-        alert('Insufficient ETH on Base. Please add funds.');
+      } else if (err.message?.includes('insufficient')) {
+        alert('Insufficient ETH on Base. Please add funds to your connected wallet.');
       } else {
-        alert('Error saving score. Check console for details.');
+        alert('Error saving score. Please try again.');
       }
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -159,25 +154,11 @@ export default function CoinFlipGame() {
           </h1>
           <p className="text-purple-200">Double or Nothing - Farcaster Frame</p>
           
-          {/* Wallet Status */}
-          <div className="mt-4">
-            {isConnected ? (
-              <div className="inline-flex items-center gap-2 bg-green-500/20 border border-green-400 rounded-full px-4 py-2">
-                <Wallet className="w-4 h-4 text-green-400" />
-                <span className="text-green-300 text-sm">
-                  {address?.slice(0, 6)}...{address?.slice(-4)}
-                </span>
-              </div>
-            ) : (
-              <button
-                onClick={connectWallet}
-                className="inline-flex items-center gap-2 bg-yellow-500/20 border border-yellow-400 rounded-full px-4 py-2 hover:bg-yellow-500/30 transition-colors"
-              >
-                <Wallet className="w-4 h-4 text-yellow-400" />
-                <span className="text-yellow-300 text-sm">Connect Wallet</span>
-              </button>
-            )}
-          </div>
+          {!isInFrame && (
+            <div className="mt-4 bg-orange-500/20 border border-orange-400 rounded-lg px-4 py-2 inline-block">
+              <p className="text-orange-300 text-sm">⚠️ Open in Warpcast to save scores on-chain</p>
+            </div>
+          )}
         </div>
 
         <div className="grid md:grid-cols-2 gap-6">
@@ -248,11 +229,7 @@ export default function CoinFlipGame() {
                     <div className="text-center mb-4">
                       <AlertCircle className="w-12 h-12 text-yellow-400 mx-auto mb-3" />
                       <h3 className="text-xl font-bold text-white mb-2">Save Your Score</h3>
-                      <p className="text-purple-200 text-sm">Transaction on Base (no extra fees)</p>
-                      
-                      {!isConnected && (
-                        <p className="text-orange-300 text-xs mt-2">⚠️ Connect your wallet first</p>
-                      )}
+                      <p className="text-purple-200 text-sm">Transaction on Base (gas fees apply)</p>
                     </div>
                     <input
                       type="text"
@@ -264,21 +241,11 @@ export default function CoinFlipGame() {
                     />
                     <button
                       onClick={saveToBlockchain}
-                      disabled={!playerName.trim() || isPending}
+                      disabled={!playerName.trim() || isSaving}
                       className="bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 text-white font-bold py-3 px-6 rounded-xl w-full mb-3 disabled:cursor-not-allowed"
                     >
-                      {isPending ? '⏳ Transaction pending...' : 
-                       isSuccess ? '✅ Saved!' :
-                       !isConnected ? '🔌 Connect & Save' :
-                       '🚀 Save Score'}
+                      {isSaving ? '⏳ Sending transaction...' : '🚀 Save Score'}
                     </button>
-                    
-                    {error && (
-                      <p className="text-red-300 text-xs text-center mb-2">
-                        Error: {error.message?.slice(0, 50)}...
-                      </p>
-                    )}
-                    
                     <button
                       onClick={resetGame}
                       className="text-purple-300 hover:text-white text-sm w-full"
@@ -291,7 +258,7 @@ export default function CoinFlipGame() {
             )}
           </div>
 
-          {/* Leaderboard - reste identique */}
+          {/* Leaderboard */}
           <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20">
             <div className="flex items-center gap-2 mb-6">
               <Trophy className="w-6 h-6 text-yellow-400" />
@@ -341,7 +308,7 @@ export default function CoinFlipGame() {
             <li>• Choose Heads or Tails</li>
             <li>• Win: double your points</li>
             <li>• Lose: lose everything</li>
-            <li>• Connect wallet to save your score on Base blockchain</li>
+            <li>• Save your score on Base blockchain (requires ETH for gas)</li>
           </ul>
         </div>
       </div>
