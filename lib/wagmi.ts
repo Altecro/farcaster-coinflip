@@ -3,7 +3,7 @@ import { base } from 'wagmi/chains';
 import { farcasterMiniApp as miniAppConnector } from '@farcaster/miniapp-wagmi-connector';
 
 // Adresse du contrat (remplace par ton adresse déployée sur Base !)
-export const LEADERBOARD_CONTRACT = '0xTonAdresseDéployéeIci' as const; // Ex. : '0x742d35Cc6634C0532925a3b8D7a5a3A6bA9d3D9f'
+export const LEADERBOARD_CONTRACT = '0x0959e90085745fbbA276D17C1f9835F0b3f55400' as const; // Ex. : '0x742d35Cc6634C0532925a3b8D7a5a3A6bA9d3D9f'
 
 // ABI mis à jour pour matcher ton contrat (saveScore + getTopScores pour leaderboard trié)
 export const LEADERBOARD_ABI = [
