@@ -1,9 +1,10 @@
 'use client'
 
 import React, { useState, useEffect } from 'react';
-import { AlertCircle, Trophy, Coins, TrendingUp } from 'lucide-react';
-import { useWriteContract, useReadContract, useAccount } from 'wagmi';
+import { AlertCircle, Trophy, Coins, TrendingUp, Wallet } from 'lucide-react';
+import { useWriteContract, useReadContract, useAccount, useConnect } from 'wagmi';
 import { LEADERBOARD_CONTRACT, LEADERBOARD_ABI } from '@/lib/wagmi';
+import sdk from '@farcaster/frame-sdk';
 
 export default function CoinFlipGame() {
   const [score, setScore] = useState(1);
@@ -13,15 +14,30 @@ export default function CoinFlipGame() {
   const [gameOver, setGameOver] = useState(false);
   const [playerName, setPlayerName] = useState('');
   const [showNameInput, setShowNameInput] = useState(false);
+  const [isInFrame, setIsInFrame] = useState(false);
 
-  const { address } = useAccount();
-  const { writeContract, isPending } = useWriteContract();
+  const { address, isConnected } = useAccount();
+  const { connect, connectors } = useConnect();
+  const { writeContract, isPending, isSuccess, error } = useWriteContract();
+
+  // Détecter si on est dans une Frame
+  useEffect(() => {
+    const checkFrame = async () => {
+      try {
+        const context = await sdk.context;
+        setIsInFrame(true);
+      } catch {
+        setIsInFrame(false);
+      }
+    };
+    checkFrame();
+  }, []);
 
   const { data: leaderboardData, refetch } = useReadContract({
     address: LEADERBOARD_CONTRACT,
     abi: LEADERBOARD_ABI,
     functionName: 'getTopScores',
-    args: [10n]
+    args: [BigInt(10)]
   });
 
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
@@ -36,6 +52,16 @@ export default function CoinFlipGame() {
       setLeaderboard(formatted);
     }
   }, [leaderboardData]);
+
+  // Recharger le leaderboard après succès
+  useEffect(() => {
+    if (isSuccess) {
+      setTimeout(() => {
+        refetch();
+        resetGame();
+      }, 3000);
+    }
+  }, [isSuccess, refetch]);
 
   const flipCoin = (userChoice: 'heads' | 'tails') => {
     if (isFlipping || gameOver) return;
@@ -59,10 +85,41 @@ export default function CoinFlipGame() {
     }, 1500);
   };
 
+  const connectWallet = async () => {
+    try {
+      if (isInFrame) {
+        // Dans une Frame, demander au SDK de se connecter
+        await sdk.actions.openUrl('https://warpcast.com/~/settings/connected-apps');
+      } else {
+        // Hors Frame, connexion classique
+        const connector = connectors[0];
+        if (connector) {
+          connect({ connector });
+        }
+      }
+    } catch (err) {
+      console.error('Wallet connection error:', err);
+      alert('Please connect your wallet first');
+    }
+  };
+
   const saveToBlockchain = async () => {
-    if (!playerName.trim() || isPending || !address) return;
+    if (!playerName.trim()) {
+      alert('Please enter your name');
+      return;
+    }
+
+    if (!isConnected || !address) {
+      alert('Please connect your wallet first');
+      await connectWallet();
+      return;
+    }
+
+    if (isPending) return;
 
     try {
+      console.log('Saving score...', { playerName, score, address });
+      
       await writeContract({
         address: LEADERBOARD_CONTRACT,
         abi: LEADERBOARD_ABI,
@@ -70,13 +127,16 @@ export default function CoinFlipGame() {
         args: [playerName.trim(), BigInt(score)]
       });
       
-      setTimeout(() => {
-        refetch();
-        resetGame();
-      }, 3000);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Transaction error:', err);
-      alert('Error saving to blockchain');
+      
+      if (err.message?.includes('User rejected')) {
+        alert('Transaction cancelled');
+      } else if (err.message?.includes('insufficient funds')) {
+        alert('Insufficient ETH on Base. Please add funds.');
+      } else {
+        alert('Error saving score. Check console for details.');
+      }
     }
   };
 
@@ -89,7 +149,6 @@ export default function CoinFlipGame() {
     setResult(null);
   };
 
-  // ⚠️ IMPORTANT : Le return() doit être présent !
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 p-4">
       <div className="max-w-4xl mx-auto">
@@ -99,6 +158,26 @@ export default function CoinFlipGame() {
             Coin Flip
           </h1>
           <p className="text-purple-200">Double or Nothing - Farcaster Frame</p>
+          
+          {/* Wallet Status */}
+          <div className="mt-4">
+            {isConnected ? (
+              <div className="inline-flex items-center gap-2 bg-green-500/20 border border-green-400 rounded-full px-4 py-2">
+                <Wallet className="w-4 h-4 text-green-400" />
+                <span className="text-green-300 text-sm">
+                  {address?.slice(0, 6)}...{address?.slice(-4)}
+                </span>
+              </div>
+            ) : (
+              <button
+                onClick={connectWallet}
+                className="inline-flex items-center gap-2 bg-yellow-500/20 border border-yellow-400 rounded-full px-4 py-2 hover:bg-yellow-500/30 transition-colors"
+              >
+                <Wallet className="w-4 h-4 text-yellow-400" />
+                <span className="text-yellow-300 text-sm">Connect Wallet</span>
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="grid md:grid-cols-2 gap-6">
@@ -113,14 +192,12 @@ export default function CoinFlipGame() {
 
             {!gameOver ? (
               <>
-                {/* Coin Animation */}
                 <div className="flex justify-center mb-8">
                   <div className={`w-32 h-32 rounded-full bg-gradient-to-br from-yellow-300 to-yellow-600 shadow-2xl flex items-center justify-center text-4xl font-bold text-white ${isFlipping ? 'animate-spin' : ''}`}>
                     {isFlipping ? '?' : result === 'heads' ? 'H' : result === 'tails' ? 'T' : '¢'}
                   </div>
                 </div>
 
-                {/* Result Message */}
                 {result && !isFlipping && (
                   <div className={`text-center mb-6 p-4 rounded-lg ${result === choice ? 'bg-green-500/20 border border-green-400' : 'bg-red-500/20 border border-red-400'}`}>
                     <p className={`text-xl font-bold ${result === choice ? 'text-green-300' : 'text-red-300'}`}>
@@ -129,7 +206,6 @@ export default function CoinFlipGame() {
                   </div>
                 )}
 
-                {/* Choice Buttons */}
                 <div className="grid grid-cols-2 gap-4">
                   <button
                     onClick={() => flipCoin('heads')}
@@ -149,7 +225,6 @@ export default function CoinFlipGame() {
               </>
             ) : (
               <>
-                {/* Game Over Screen */}
                 {!showNameInput ? (
                   <div className="text-center">
                     <div className="text-6xl mb-4">😢</div>
@@ -174,6 +249,10 @@ export default function CoinFlipGame() {
                       <AlertCircle className="w-12 h-12 text-yellow-400 mx-auto mb-3" />
                       <h3 className="text-xl font-bold text-white mb-2">Save Your Score</h3>
                       <p className="text-purple-200 text-sm">Transaction on Base (no extra fees)</p>
+                      
+                      {!isConnected && (
+                        <p className="text-orange-300 text-xs mt-2">⚠️ Connect your wallet first</p>
+                      )}
                     </div>
                     <input
                       type="text"
@@ -188,8 +267,18 @@ export default function CoinFlipGame() {
                       disabled={!playerName.trim() || isPending}
                       className="bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 text-white font-bold py-3 px-6 rounded-xl w-full mb-3 disabled:cursor-not-allowed"
                     >
-                      {isPending ? '⏳ Transaction pending...' : '🚀 Save Score'}
+                      {isPending ? '⏳ Transaction pending...' : 
+                       isSuccess ? '✅ Saved!' :
+                       !isConnected ? '🔌 Connect & Save' :
+                       '🚀 Save Score'}
                     </button>
+                    
+                    {error && (
+                      <p className="text-red-300 text-xs text-center mb-2">
+                        Error: {error.message?.slice(0, 50)}...
+                      </p>
+                    )}
+                    
                     <button
                       onClick={resetGame}
                       className="text-purple-300 hover:text-white text-sm w-full"
@@ -202,7 +291,7 @@ export default function CoinFlipGame() {
             )}
           </div>
 
-          {/* Leaderboard */}
+          {/* Leaderboard - reste identique */}
           <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20">
             <div className="flex items-center gap-2 mb-6">
               <Trophy className="w-6 h-6 text-yellow-400" />
@@ -242,7 +331,6 @@ export default function CoinFlipGame() {
           </div>
         </div>
 
-        {/* Rules */}
         <div className="mt-6 bg-white/5 backdrop-blur-lg rounded-xl p-4 border border-white/10">
           <h3 className="text-white font-bold mb-2 flex items-center gap-2">
             <TrendingUp className="w-5 h-5" />
@@ -253,7 +341,7 @@ export default function CoinFlipGame() {
             <li>• Choose Heads or Tails</li>
             <li>• Win: double your points</li>
             <li>• Lose: lose everything</li>
-            <li>• Save your score on Base blockchain to appear on the leaderboard</li>
+            <li>• Connect wallet to save your score on Base blockchain</li>
           </ul>
         </div>
       </div>
