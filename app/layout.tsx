@@ -1,14 +1,22 @@
-import { WagmiProvider } from 'wagmi';
-import { config } from '@/lib/wagmi';
+import type { Metadata } from 'next';
+import { Inter } from 'next/font/google';
+import './globals.css'; // Si t'en as un
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+const inter = Inter({ subsets: ['latin'] });
+
+export const metadata: Metadata = {
+  title: 'Coin Flip Game - Farcaster Mini App',
+  description: 'Double or nothing on Base!',
+};
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
-    <html lang="en">
-      <body>
-        <WagmiProvider config={config}>
-          {children}
-        </WagmiProvider>
-      </body>
+    <html lang="fr">
+      <body className={inter.className}>{children}</body>
     </html>
   );
 }
