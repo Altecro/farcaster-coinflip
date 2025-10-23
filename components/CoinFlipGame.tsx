@@ -77,52 +77,54 @@ export default function CoinFlipGame() {
   };
 
   const saveToBlockchain = async () => {
-    if (!playerName.trim()) {
-      alert('Please enter your name');
-      return;
+  if (!playerName.trim()) {
+    alert('Please enter your name');
+    return;
+  }
+
+  if (!isConnected) {
+    alert('⚠️ Please open this app in Warpcast to connect your wallet');
+    return;
+  }
+
+  setIsSaving(true);
+
+  try {
+    console.log('🔍 Pre-tx checks:', { address: LEADERBOARD_CONTRACT, chainId: base.id, args: [playerName.trim(), score], isConnected });
+    
+    const txHash = await writeContractAsync({
+      address: LEADERBOARD_CONTRACT,
+      abi: LEADERBOARD_ABI,
+      functionName: 'saveScore',
+      args: [playerName.trim(), BigInt(score)],
+      chainId: base.id,
+    });
+
+    console.log('✅ Tx hash:', txHash);
+    
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    alert(`✅ Score sauvé!\n\nTx: ${txHash.slice(0, 10)}...`);
+    await loadLeaderboard();
+    resetGame();
+    
+  } catch (err: any) {
+    console.error('🚨 Full tx error:', err); // Log complet pour debug
+    console.error('Error details:', { code: err.code, message: err.message, shortMessage: err.message?.slice(0, 200) });
+    
+    if (err.code === 4001 || err.message?.includes('User rejected') || err.message?.includes('cancel')) {
+      alert('❌ Transaction annulée par l\'utilisateur');
+    } else if (err.code === -32000 || err.message?.includes('insufficient funds') || err.message?.includes('balance')) {
+      alert('💸 ETH insuffisant sur Base\n\nBridge via https://bridge.base.org');
+    } else if (err.message?.includes('scanning') || err.message?.includes('security')) {
+      alert('🔒 Bloqué par scan sécurité\n\nVérifie avec Blockaid: https://report.blockaid.io/verifiedProject');
+    } else {
+      alert(`❌ Erreur: ${err.message?.slice(0, 100) || 'Inconnue'}\nCheck console pour détails`);
     }
-
-    if (!isConnected) {
-      alert('⚠️ Please open this app in Warpcast to connect your wallet');
-      return;
-    }
-
-    setIsSaving(true);
-
-    try {
-      console.log('Envoi de la transaction...');
-
-      // Utilise Wagmi pour writeContract (gère chainId, encoding, etc. auto)
-      const txHash = await writeContractAsync({
-        address: LEADERBOARD_CONTRACT,
-        abi: LEADERBOARD_ABI,
-        functionName: 'saveScore',
-        args: [playerName.trim(), BigInt(score)],
-        chainId: base.id, // Force Base
-      });
-
-      console.log('Transaction envoyée:', txHash);
-      
-      await new Promise(resolve => setTimeout(resolve, 2000)); // Attente pour confirmation
-      
-      alert(`✅ Score sauvé!\n\nTx: ${txHash.slice(0, 10)}...`);
-      await loadLeaderboard();
-      resetGame();
-      
-    } catch (err: any) {
-      console.error('Erreur transaction:', err);
-      
-      if (err.code === 4001 || err.message?.includes('User rejected')) {
-        alert('❌ Transaction annulée');
-      } else if (err.code === -32000 || err.message?.includes('insufficient funds')) {
-        alert('💸 ETH insuffisant sur Base\n\nAjoute de l\'ETH à ton wallet');
-      } else {
-        alert(`❌ Erreur: ${err.message?.slice(0, 100) || 'Erreur inconnue'}`);
-      }
-    } finally {
-      setIsSaving(false);
-    }
-  };
+  } finally {
+    setIsSaving(false);
+  }
+};
 
   const resetGame = () => {
     setScore(1);
