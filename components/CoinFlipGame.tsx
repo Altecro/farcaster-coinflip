@@ -17,27 +17,22 @@ export default function CoinFlipGame() {
   const [showNameInput, setShowNameInput] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isInFrame, setIsInFrame] = useState(false);
-  const [fid, setFid] = useState<number | null>(null);
-
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
 
-  // Détecter si on est dans une Frame et récupérer le FID
   useEffect(() => {
     const initFrame = async () => {
       try {
-        const context = await sdk.context;
+        await sdk.context;
         setIsInFrame(true);
-        setFid(context.user?.fid || null);
-        console.log('Frame context:', context);
+        sdk.actions.ready();
       } catch (err) {
-        console.log('Not in frame or error:', err);
+        console.log('Not in frame');
         setIsInFrame(false);
       }
     };
     initFrame();
   }, []);
 
-  // Charger le leaderboard
   useEffect(() => {
     loadLeaderboard();
   }, []);
@@ -84,51 +79,47 @@ export default function CoinFlipGame() {
 
     try {
       if (isInFrame) {
-        // Utiliser les transactions Frame
-        console.log('Sending transaction via Frame...');
+        console.log('Preparing transaction...');
         
-        // Encoder les données de la transaction
         const data = encodeFunctionData({
           abi: LEADERBOARD_ABI,
           functionName: 'saveScore',
           args: [playerName.trim(), BigInt(score)]
         });
 
-        // Envoyer la transaction via le SDK Farcaster
-        const txId = await sdk.actions.sendTransaction({
-          chainId: `eip155:${base.id}`,
+        console.log('Sending transaction to:', LEADERBOARD_CONTRACT);
+        
+        const txHash = await sdk.wallet.ethProvider.request({
           method: 'eth_sendTransaction',
-          params: {
-            abi: LEADERBOARD_ABI,
+          params: [{
             to: LEADERBOARD_CONTRACT,
             data: data,
-            value: '0'
-          }
+            value: '0x0',
+            chainId: `0x${base.id.toString(16)}`
+          }]
         });
 
-        console.log('Transaction sent:', txId);
+        console.log('Transaction sent:', txHash);
         
-        // Simuler un délai pour la confirmation
-        await new Promise(resolve => setTimeout(resolve, 3000));
+        await new Promise(resolve => setTimeout(resolve, 2000));
         
-        alert('Score saved successfully! 🎉');
+        alert('✅ Score saved!\n\nTx: ' + txHash.slice(0, 10) + '...');
         await loadLeaderboard();
         resetGame();
         
       } else {
-        // Mode web normal (hors Frame)
-        alert('Please open this app in Warpcast to save your score on-chain');
+        alert('⚠️ Please open this app in Warpcast to save your score on Base blockchain');
       }
       
     } catch (err: any) {
       console.error('Transaction error:', err);
       
-      if (err.message?.includes('rejected')) {
-        alert('Transaction cancelled');
-      } else if (err.message?.includes('insufficient')) {
-        alert('Insufficient ETH on Base. Please add funds to your connected wallet.');
+      if (err.code === 4001 || err.message?.includes('reject') || err.message?.includes('cancel')) {
+        alert('❌ Transaction cancelled');
+      } else if (err.code === -32000 || err.message?.includes('insufficient')) {
+        alert('💸 Insufficient ETH on Base\n\nPlease add ETH to your wallet');
       } else {
-        alert('Error saving score. Please try again.');
+        alert('❌ Error: ' + (err.message?.slice(0, 100) || 'Unknown error'));
       }
     } finally {
       setIsSaving(false);
@@ -156,13 +147,12 @@ export default function CoinFlipGame() {
           
           {!isInFrame && (
             <div className="mt-4 bg-orange-500/20 border border-orange-400 rounded-lg px-4 py-2 inline-block">
-              <p className="text-orange-300 text-sm">⚠️ Open in Warpcast to save scores on-chain</p>
+              <p className="text-orange-300 text-sm">⚠️ Open in Warpcast to save scores</p>
             </div>
           )}
         </div>
 
         <div className="grid md:grid-cols-2 gap-6">
-          {/* Game Area */}
           <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20">
             <div className="text-center mb-6">
               <div className="inline-block bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full px-6 py-3 mb-4">
@@ -182,7 +172,7 @@ export default function CoinFlipGame() {
                 {result && !isFlipping && (
                   <div className={`text-center mb-6 p-4 rounded-lg ${result === choice ? 'bg-green-500/20 border border-green-400' : 'bg-red-500/20 border border-red-400'}`}>
                     <p className={`text-xl font-bold ${result === choice ? 'text-green-300' : 'text-red-300'}`}>
-                      {result === choice ? '🎉 You Won! +' + (score/2) + ' pts' : '💔 You Lost! Everything is gone...'}
+                      {result === choice ? '🎉 You Won! +' + (score/2) + ' pts' : '💔 You Lost!'}
                     </p>
                   </div>
                 )}
@@ -229,7 +219,7 @@ export default function CoinFlipGame() {
                     <div className="text-center mb-4">
                       <AlertCircle className="w-12 h-12 text-yellow-400 mx-auto mb-3" />
                       <h3 className="text-xl font-bold text-white mb-2">Save Your Score</h3>
-                      <p className="text-purple-200 text-sm">Transaction on Base (gas fees apply)</p>
+                      <p className="text-purple-200 text-sm">On Base blockchain</p>
                     </div>
                     <input
                       type="text"
@@ -244,7 +234,7 @@ export default function CoinFlipGame() {
                       disabled={!playerName.trim() || isSaving}
                       className="bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 text-white font-bold py-3 px-6 rounded-xl w-full mb-3 disabled:cursor-not-allowed"
                     >
-                      {isSaving ? '⏳ Sending transaction...' : '🚀 Save Score'}
+                      {isSaving ? '⏳ Sending...' : '🚀 Save Score'}
                     </button>
                     <button
                       onClick={resetGame}
@@ -258,7 +248,6 @@ export default function CoinFlipGame() {
             )}
           </div>
 
-          {/* Leaderboard */}
           <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20">
             <div className="flex items-center gap-2 mb-6">
               <Trophy className="w-6 h-6 text-yellow-400" />
@@ -308,7 +297,7 @@ export default function CoinFlipGame() {
             <li>• Choose Heads or Tails</li>
             <li>• Win: double your points</li>
             <li>• Lose: lose everything</li>
-            <li>• Save your score on Base blockchain (requires ETH for gas)</li>
+            <li>• Save on Base (requires small gas fee)</li>
           </ul>
         </div>
       </div>
