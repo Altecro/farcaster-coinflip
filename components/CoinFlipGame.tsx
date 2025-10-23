@@ -20,18 +20,25 @@ export default function CoinFlipGame() {
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
 
   useEffect(() => {
-    const initFrame = async () => {
-      try {
-        await sdk.context;
-        setIsInFrame(true);
-        sdk.actions.ready();
-      } catch (err) {
-        console.log('Not in frame');
-        setIsInFrame(false);
-      }
-    };
-    initFrame();
-  }, []);
+  const initMiniApp = async () => {
+    try {
+      // Wait for SDK context (optional but good for user data)
+      await sdk.context;
+      setIsInFrame(true);
+      console.log('✅ Mini App context loaded'); // Debug log
+    } catch (err) {
+      console.log('ℹ️ Not in Mini App context:', err);
+      setIsInFrame(false);
+    } finally {
+      // Always call ready() here: Safe even outside context, hides splash ASAP
+      console.log('🔄 Calling sdk.actions.ready()...'); // Debug log
+      await sdk.actions.ready(); // Await to ensure resolution
+      console.log('✅ ready() called successfully'); // Confirm in console
+    }
+  };
+
+  initMiniApp();
+}, []); // Empty deps: Runs once on mount
 
   useEffect(() => {
     loadLeaderboard();
