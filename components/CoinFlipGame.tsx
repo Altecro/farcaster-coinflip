@@ -30,19 +30,23 @@ export default function CoinFlipGame() {
   }, [isConnected, address, chain]);
 
   useEffect(() => {
-    const initMiniApp = async () => {
-      try {
-        await sdk.actions.ready();
-        setIsInFrame(true);
-        console.log('✅ Mini App context loaded & ready');
-      } catch (err) {
-        console.log('ℹ️ Not in Mini App context:', err);
-        setIsInFrame(false);
+  const initMiniApp = async () => {
+    try {
+      // Optional: Add param if your app uses swipe gestures (e.g., for modals)
+      await sdk.actions.ready({ disableNativeGestures: false });
+      setIsInFrame(true);
+      console.log('✅ Mini App context loaded & ready');
+    } catch (err) {
+      console.error('❌ SDK error (preview mode?):', err); // Log full error
+      // Fallback: In non-Mini App (e.g., browser/preview), simulate ready by hiding any loader
+      if (document.querySelector('.splash-screen')) { // If you have a custom loader
+        document.querySelector('.splash-screen')?.remove();
       }
-    };
-
-    initMiniApp();
-  }, []);
+      setIsInFrame(false);
+    }
+  };
+  initMiniApp();
+}, []);
 
   useEffect(() => {
     loadLeaderboard();
