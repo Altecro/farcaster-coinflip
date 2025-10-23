@@ -1,0 +1,20 @@
+{
+  "frame": {
+    "name": "Farcaster Coinflip",
+    "version": "1",
+    "iconUrl": "https://farcaster-coinflip.vercel.app/icon.png",
+    "homeUrl": "https://farcaster-coinflip.vercel.app",
+    "imageUrl": "https://farcaster-coinflip.vercel.app/image.png",
+    "splashImageUrl": "https://farcaster-coinflip.vercel.app/splash.png",
+    "splashBackgroundColor": "#ffffff",
+    "webhookUrl": "https://farcaster-coinflip.vercel.app/api/webhook",
+    "subtitle": "Flip a coin nd climb the leaderboard!",
+    "description": "This app was codded 100% with Claude",
+    "primaryCategory": "games"
+  },
+  "accountAssociation": {
+    "header": "eyJmaWQiOjg2Mjk1MSwidHlwZSI6ImF1dGgiLCJrZXkiOiIweDgzOTFhMjMwRTMwMGY5RDczRGNjNjVjMjgyOUFCQTA5QWM3ZTcwN2UifQ",
+    "payload": "eyJkb21haW4iOiJmYXJjYXN0ZXItY29pbmZsaXAudmVyY2VsLmFwcCJ9",
+    "signature": "0YB68fWVejliuJsKoNq8VCRxfLlmkKKS9/iRnT2AUxpAOunEo2pjloxYY/KoYwzpsEUaye/WQ3rtNp6isDn6TBs="
+  }
+}
