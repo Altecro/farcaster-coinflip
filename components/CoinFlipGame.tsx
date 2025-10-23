@@ -2,11 +2,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { AlertCircle, Trophy, Coins, TrendingUp } from 'lucide-react';
-import { sdk } from '@farcaster/miniapp-sdk'; // Nouveau SDK
-import { useWriteContract, useAccount } from 'wagmi'; // Wagmi hooks
+import { sdk } from '@farcaster/miniapp-sdk';
+import { useWriteContract, useAccount, useConnect } from 'wagmi'; // Ajout useConnect
 import { base } from 'wagmi/chains';
 import { LEADERBOARD_CONTRACT, LEADERBOARD_ABI } from '@/lib/wagmi';
-// Pas d'import config ici : géré par Providers dans page.tsx
 
 export default function CoinFlipGame() {
   const [score, setScore] = useState(1);
@@ -20,17 +19,22 @@ export default function CoinFlipGame() {
   const [isInFrame, setIsInFrame] = useState(false);
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
 
-  // Hook Wagmi pour la transaction
+  // Hooks Wagmi
   const { writeContractAsync } = useWriteContract();
-  const { isConnected } = useAccount(); // Vérifie si connecté au wallet
+  const { isConnected, address, chain } = useAccount(); // Logs address/chain
+  const { connect, connectors, error: connectError, isPending: connectPending } = useConnect(); // Pour force connect
+
+  // Log changes pour debug
+  useEffect(() => {
+    console.log('🔍 Wagmi state:', { isConnected, address: address?.slice(0, 6) + '...', chainId: chain?.id, connectors: connectors.map(c => c.name) });
+  }, [isConnected, address, chain]);
 
   useEffect(() => {
     const initMiniApp = async () => {
       try {
-        // Le nouveau SDK n'a pas de .context, mais on peut checker via Wagmi ou ready()
-        await sdk.actions.ready(); // Appel ready() direct
+        await sdk.actions.ready();
         setIsInFrame(true);
-        console.log('✅ Mini App context loaded');
+        console.log('✅ Mini App context loaded & ready');
       } catch (err) {
         console.log('ℹ️ Not in Mini App context:', err);
         setIsInFrame(false);
@@ -52,6 +56,22 @@ export default function CoinFlipGame() {
     } catch (err) {
       console.error('Error loading leaderboard:', err);
     }
+  };
+
+  const handleConnect = () => {
+    if (connectors.length === 0) {
+      console.error('🚨 No connectors found!');
+      alert('No wallet connector – check if in Warpcast');
+      return;
+    }
+    const farcasterConnector = connectors.find(c => c.name.includes('Farcaster')); // Trouve le bon
+    if (!farcasterConnector) {
+      console.error('🚨 Farcaster connector not found!');
+      alert('Connector manquant – vérifie lib/wagmi.ts');
+      return;
+    }
+    connect({ connector: farcasterConnector });
+    console.log('🔄 Manual connect attempted');
   };
 
   const flipCoin = (userChoice: 'heads' | 'tails') => {
@@ -77,54 +97,59 @@ export default function CoinFlipGame() {
   };
 
   const saveToBlockchain = async () => {
-  if (!playerName.trim()) {
-    alert('Please enter your name');
-    return;
-  }
-
-  if (!isConnected) {
-    alert('⚠️ Please open this app in Warpcast to connect your wallet');
-    return;
-  }
-
-  setIsSaving(true);
-
-  try {
-    console.log('🔍 Pre-tx checks:', { address: LEADERBOARD_CONTRACT, chainId: base.id, args: [playerName.trim(), score], isConnected });
-    
-    const txHash = await writeContractAsync({
-      address: LEADERBOARD_CONTRACT,
-      abi: LEADERBOARD_ABI,
-      functionName: 'saveScore',
-      args: [playerName.trim(), BigInt(score)],
-      chainId: base.id,
-    });
-
-    console.log('✅ Tx hash:', txHash);
-    
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    alert(`✅ Score sauvé!\n\nTx: ${txHash.slice(0, 10)}...`);
-    await loadLeaderboard();
-    resetGame();
-    
-  } catch (err: any) {
-    console.error('🚨 Full tx error:', err); // Log complet pour debug
-    console.error('Error details:', { code: err.code, message: err.message, shortMessage: err.message?.slice(0, 200) });
-    
-    if (err.code === 4001 || err.message?.includes('User rejected') || err.message?.includes('cancel')) {
-      alert('❌ Transaction annulée par l\'utilisateur');
-    } else if (err.code === -32000 || err.message?.includes('insufficient funds') || err.message?.includes('balance')) {
-      alert('💸 ETH insuffisant sur Base\n\nBridge via https://bridge.base.org');
-    } else if (err.message?.includes('scanning') || err.message?.includes('security')) {
-      alert('🔒 Bloqué par scan sécurité\n\nVérifie avec Blockaid: https://report.blockaid.io/verifiedProject');
-    } else {
-      alert(`❌ Erreur: ${err.message?.slice(0, 100) || 'Inconnue'}\nCheck console pour détails`);
+    if (!playerName.trim()) {
+      alert('Please enter your name');
+      return;
     }
-  } finally {
-    setIsSaving(false);
-  }
-};
+
+    if (!isConnected) {
+      alert('⚠️ Wallet not connected. Click "Connect Wallet" first.');
+      return;
+    }
+
+    if (chain?.id !== base.id) {
+      alert('⚠️ Switch to Base chain in wallet');
+      return;
+    }
+
+    setIsSaving(true);
+
+    try {
+      console.log('🔍 Pre-tx checks:', { address: LEADERBOARD_CONTRACT, chainId: base.id, args: [playerName.trim(), score], account: address });
+
+      const txHash = await writeContractAsync({
+        address: LEADERBOARD_CONTRACT,
+        abi: LEADERBOARD_ABI,
+        functionName: 'saveScore',
+        args: [playerName.trim(), BigInt(score)],
+        chainId: base.id,
+      });
+
+      console.log('✅ Tx hash:', txHash);
+      
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      alert(`✅ Score sauvé!\n\nTx: ${txHash.slice(0, 10)}...`);
+      await loadLeaderboard();
+      resetGame();
+      
+    } catch (err: any) {
+      console.error('🚨 Full tx error:', err);
+      console.error('Error details:', { code: err.code, message: err.message?.slice(0, 200) });
+      
+      if (err.code === 4001 || err.message?.includes('User rejected')) {
+        alert('❌ Transaction annulée');
+      } else if (err.code === -32000 || err.message?.includes('insufficient funds')) {
+        alert('💸 ETH insuffisant sur Base');
+      } else if (err.message?.includes('scanning') || err.message?.includes('Blockaid')) {
+        alert('🔒 Bloqué par scan sécurité – Vérifie Blockaid: https://report.blockaid.io/verifiedProject');
+      } else {
+        alert(`❌ Erreur: ${err.message?.slice(0, 100) || 'Inconnue'}\nCheck console`);
+      }
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const resetGame = () => {
     setScore(1);
@@ -145,13 +170,27 @@ export default function CoinFlipGame() {
           </h1>
           <p className="text-purple-200">Double or Nothing - Farcaster Mini App</p>
           
-          {!isInFrame && (
-            <div className="mt-4 bg-orange-500/20 border border-orange-400 rounded-lg px-4 py-2 inline-block">
-              <p className="text-orange-300 text-sm">⚠️ Open in Warpcast to save scores</p>
+          <div className="mt-4 space-y-2">
+            <div className={`bg-${isInFrame ? 'green' : 'orange'}-500/20 border border-${isInFrame ? 'green' : 'orange'}-400 rounded-lg px-4 py-2 inline-block`}>
+              <p className={`text-${isInFrame ? 'green' : 'orange'}-300 text-sm`}>Context: {isInFrame ? '✅ In Mini App' : '⚠️ Not in Warpcast'}</p>
             </div>
-          )}
+            <div className={`bg-${isConnected ? 'green' : 'red'}-500/20 border border-${isConnected ? 'green' : 'red'}-400 rounded-lg px-4 py-2 inline-block`}>
+              <p className={`text-${isConnected ? 'green' : 'red'}-300 text-sm`}>Wallet: {isConnected ? `✅ Connected (${address?.slice(0, 6)}...)` : '❌ Disconnected'}</p>
+            </div>
+            {!isConnected && (
+              <button
+                onClick={handleConnect}
+                disabled={connectPending}
+                className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg mt-2"
+              >
+                {connectPending ? '⏳ Connecting...' : '🔗 Connect Wallet'}
+              </button>
+            )}
+            {connectError && <p className="text-red-300 text-xs mt-1">Connect error: {connectError.message?.slice(0, 50)}...</p>}
+          </div>
         </div>
 
+        {/* Le reste du JSX reste IDENTIQUE – game UI, leaderboard, rules */}
         <div className="grid md:grid-cols-2 gap-6">
           <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20">
             <div className="text-center mb-6">
@@ -203,7 +242,8 @@ export default function CoinFlipGame() {
                     <p className="text-purple-200 mb-6">Final score: {score} points</p>
                     <button
                       onClick={() => setShowNameInput(true)}
-                      className="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-8 rounded-xl mb-3 w-full"
+                      disabled={!isConnected}
+                      className="bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white font-bold py-3 px-8 rounded-xl mb-3 w-full"
                     >
                       💾 Save on Base
                     </button>
@@ -231,7 +271,7 @@ export default function CoinFlipGame() {
                     />
                     <button
                       onClick={saveToBlockchain}
-                      disabled={!playerName.trim() || isSaving}
+                      disabled={!playerName.trim() || isSaving || !isConnected}
                       className="bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 text-white font-bold py-3 px-6 rounded-xl w-full mb-3 disabled:cursor-not-allowed"
                     >
                       {isSaving ? '⏳ Sending...' : '🚀 Save Score'}
