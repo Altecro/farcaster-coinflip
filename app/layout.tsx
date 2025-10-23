@@ -9,10 +9,10 @@ export const metadata: Metadata = {
   description: 'Double or nothing coin flip game on Base',
   other: {
     'fc:frame': 'vNext',
-    'fc:frame:image': 'https://your-domain.vercel.app/og-image.png',
+    'fc:frame:image': '/https://farcaster-coinflip.vercel.app/',
     'fc:frame:button:1': 'Play Game',
     'fc:frame:button:1:action': 'launch_frame',
-    'fc:frame:button:1:target': 'https://your-domain.vercel.app',
+    'fc:frame:button:1:target': '/https://farcaster-coinflip.vercel.app/',
   }
 }
 
