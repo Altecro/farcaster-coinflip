@@ -8,8 +8,8 @@
     "splashImageUrl": "https://farcaster-coinflip.vercel.app/splash.png",
     "splashBackgroundColor": "#ffffff",
     "webhookUrl": "https://farcaster-coinflip.vercel.app/api/webhook",
-    "subtitle": "Flip a coin nd climb the leaderboard!",
-    "description": "This app was codded 100% with Claude",
+    "subtitle": "Flip a coin",
+    "description": "This app was codded with Claude",
     "primaryCategory": "games"
   },
   "accountAssociation": {
