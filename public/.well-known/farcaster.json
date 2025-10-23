@@ -1,20 +1,22 @@
 {
   "frame": {
-    "name": "Farcaster Coinflip",
+    "name": "CoinFlip",
     "version": "1",
-    "iconUrl": "https://farcaster-coinflip.vercel.app/icon.png",
+    "iconUrl": "https://farcaster-coinflip.vercel.app/og-image.png",
     "homeUrl": "https://farcaster-coinflip.vercel.app",
-    "imageUrl": "https://farcaster-coinflip.vercel.app/image.png",
     "splashImageUrl": "https://farcaster-coinflip.vercel.app/splash.png",
-    "splashBackgroundColor": "#ffffff",
-    "webhookUrl": "https://farcaster-coinflip.vercel.app/api/webhook",
-    "subtitle": "Flip a coin",
-    "description": "This app was codded with Claude",
-    "primaryCategory": "games"
+    "splashBackgroundColor": "#1e3a8a",
+    "webhookUrl": "https://farcaster-coinflip.vercel.app/og-image.png",
+    "subtitle": "Flip a coin!",
+    "description": "Created with AI",
+    "primaryCategory": "games",
+    "ogDescription": "Simple Miniapp created with AI",
+    "ogImageUrl": "https://farcaster-coinflip.vercel.app/og-image.png",
+    "castShareUrl": "https://farcaster-coinflip.vercel.app/try_it"
   },
   "accountAssociation": {
     "header": "eyJmaWQiOjg2Mjk1MSwidHlwZSI6ImF1dGgiLCJrZXkiOiIweDgzOTFhMjMwRTMwMGY5RDczRGNjNjVjMjgyOUFCQTA5QWM3ZTcwN2UifQ",
-    "payload": "eyJkb21haW4iOiJmYXJjYXN0ZXItY29pbmZsaXAudmVyY2VsLmFwcCJ9",
-    "signature": "0YB68fWVejliuJsKoNq8VCRxfLlmkKKS9/iRnT2AUxpAOunEo2pjloxYY/KoYwzpsEUaye/WQ3rtNp6isDn6TBs="
+    "payload": "eyJkb21haW4iOiIifQ",
+    "signature": "CrKzDoam6G0WeCz2SmjoyTC9KFZtuDQjA0MN06O8hQxCUuHHN5FTYeWAXBKMh5d44j42L8QyZfTzgolx07gUqhw="
   }
 }
