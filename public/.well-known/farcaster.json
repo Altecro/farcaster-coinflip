@@ -1,5 +1,5 @@
 {
-  "frame": {
+  "miniapp": {
     "name": "CoinFlip",
     "version": "1",
     "iconUrl": "https://farcaster-coinflip.vercel.app/og-image.png",
