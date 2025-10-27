@@ -18,8 +18,9 @@
     "header": "eyJmaWQiOjg2Mjk1MSwidHlwZSI6ImF1dGgiLCJrZXkiOiIweDgzOTFhMjMwRTMwMGY5RDczRGNjNjVjMjgyOUFCQTA5QWM3ZTcwN2UifQ",
     "payload": "eyJkb21haW4iOiIifQ",
     "signature": "CrKzDoam6G0WeCz2SmjoyTC9KFZtuDQjA0MN06O8hQxCUuHHN5FTYeWAXBKMh5d44j42L8QyZfTzgolx07gUqhw="
-    "baseBuilder": {
-      "ownerAddress": "0xD002eb093Ce8fC3E2aD8aED8F23D8c2b8974F81B"
-    }
   }  
+  "baseBuilder": {
+      "ownerAddress": "0xD002eb093Ce8fC3E2aD8aED8F23D8c2b8974F81B"
+  }
+  
 }
