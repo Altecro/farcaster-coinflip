@@ -18,7 +18,11 @@
     "ogDescription": "Simple Miniapp created with AI",
     "ogImageUrl": "https://farcaster-coinflip.vercel.app/og-image.png",
     "castShareUrl": "https://farcaster-coinflip.vercel.app/try_it",
-    "tags": "game"
+    "tags": [
+      "game",
+      "web3",
+      "community"
+    ]
   },
   "baseBuilder": {
       "ownerAddress": "0xD002eb093Ce8fC3E2aD8aED8F23D8c2b8974F81B"
