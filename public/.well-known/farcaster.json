@@ -1,10 +1,5 @@
 {
-  "accountAssociation": {
-    "header": "eyJmaWQiOjg2Mjk1MSwidHlwZSI6ImF1dGgiLCJrZXkiOiIweDgzOTFhMjMwRTMwMGY5RDczRGNjNjVjMjgyOUFCQTA5QWM3ZTcwN2UifQ",
-    "payload": "eyJkb21haW4iOiIifQ",
-    "signature": "CrKzDoam6G0WeCz2SmjoyTC9KFZtuDQjA0MN06O8hQxCUuHHN5FTYeWAXBKMh5d44j42L8QyZfTzgolx07gUqhw="
-  },  
-  "miniapp": {
+  "frame": {
     "name": "CoinFlip",
     "version": "1",
     "iconUrl": "https://farcaster-coinflip.vercel.app/og-image.png",
@@ -22,9 +17,18 @@
       "game",
       "web3",
       "community"
-    ]
+    ],
+    "buttonTitle": "Flip a coin!",
+    "ogTitle": "CoinFlip - Flip a coin!",
+    "imageUrl": "https://farcaster-coinflip.vercel.app/og-image.png",
+    "screenshotUrls": [
+      "https://farcaster-coinflip.vercel.app/og-image.png"
+    ],
+    "heroImageUrl": "https://farcaster-coinflip.vercel.app/og-image.png"
   },
-  "baseBuilder": {
-      "ownerAddress": "0xD002eb093Ce8fC3E2aD8aED8F23D8c2b8974F81B"
+  "accountAssociation": {
+    "header": "eyJmaWQiOjg2Mjk1MSwidHlwZSI6ImF1dGgiLCJrZXkiOiIweDgzOTFhMjMwRTMwMGY5RDczRGNjNjVjMjgyOUFCQTA5QWM3ZTcwN2UifQ",
+    "payload": "eyJkb21haW4iOiJmYXJjYXN0ZXItY29pbmZsaXAudmVyY2VsLmFwcCJ9",
+    "signature": "0YB68fWVejliuJsKoNq8VCRxfLlmkKKS9/iRnT2AUxpAOunEo2pjloxYY/KoYwzpsEUaye/WQ3rtNp6isDn6TBs="
   }
 }
